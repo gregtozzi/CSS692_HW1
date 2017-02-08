@@ -1,0 +1,178 @@
+---
+title: "CSS_692_HW1_Tozzi"
+author: "Greg Tozzi"
+date: "February 7, 2017"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Loading the data
+
+The `R` function `korea_graph` automates loading and processing the data files.  The function takes as input the names of three files:
+1. The Pajek NET file describing the graph
+2. The CSV file identifying the mothers' club members
+3. The CSV file identifying those who adopted family planning
+
+The function creates an `igraph` object and adds membership and adoption data to the nodes.  The function also computes the following normalized measures of centrality:
+1. Betweenness
+2. Eigenvector centrality
+3. Degree
+4. Closeness
+
+These data can be accessed by converting the `igraph` object to an `R` data frame using the `as_data_frame` function.
+
+```{r, echo=FALSE}
+suppressMessages(source('helper_functions.R'))
+suppressMessages(require(pander))
+```
+
+```{r}
+# Load the data
+Korea1 <- korea_graph('Korea1.net',
+                      'Korea1_members.csv',
+                      'Korea1_adopters.csv')
+
+Korea2 <- korea_graph('Korea2.net',
+                      'Korea2_members.csv',
+                      'Korea2_adopters.csv')
+
+# Convert both graphs to data frames
+Korea1DF <- as_data_frame(Korea1, what = 'vertices')
+Korea2DF <- as_data_frame(Korea2, what = 'vertices')
+
+# Print the first five rows of the data frame
+head(Korea1DF) %>% pander
+```
+
+### Plotting the graphs
+
+The `R` function `plot_korea` takes as input a graph which is the output of `korea_graph` and plots it.  Nodes are colored according to membership and adoption.  Adopters who are members of the local mothers' club are colored dark blue.  Adopters who are not members of the mothers' club are colored light blue.  Non-adopters who are members of the mothers' club are shown in orange.  Non-adopters who are not members of the mothers' club are plotted in red.
+
+```{r}
+plot_korea(Korea1)
+plot_korea(Korea2)
+```
+
+### Observations from the graphs
+
+#### Adoption and membership rates
+
+Rates of adoption of family planning and membership are shown below in tabular form for the two villages.  These tables were generated using a bespoke `R` function, `korea_table`.  The function is based on the `R` function `table` and returns the number of nodes associated with each of the four possible combinations of family planning adoption and mothers' club membership.
+
+First we examine the community that was more successful in adopting family planning:
+
+```{r}
+korea_table(Korea1DF) %>% pander
+```
+
+Then the less successful community:
+
+```{r}
+korea_table(Korea2DF) %>% pander
+```
+
+While there is a small difference in adoption among mothers' club members, the driver of community success appears to be to convince those who are not mothers' club members to adopt family planning.  In the more successful community, the split among non-members is practically even, while non-members in the less successful community overwhelmingly rejected family planning.
+
+#### The role of betweenness in the successful village
+
+Examining the graph of the successful village reveals a potential explanation for that village's ability to convince those who were not club members to adopt family planning.  The graph of that village's communication network shows that a relatively large and sparse community of 10 members is connected to the bulk of the nodes through Node 14.  Node 14 is a member of the mothers' club and adopted family planning.  She appears to serve as a bridge between the spare sub-network, a community that is uniform in not joining the mothers' club, and a larger, denser network that is heterogeneous in club membership and family planning adoption.  Interestingly, the sparse network has an 80% adoption rate.
+
+Sorting the data frame associated with the successful village by normalized betweenness centrality, we see that Node 14 enjoys the highest value of betweenness centrality in the network.
+
+```{r}
+Korea1DF[order(Korea1DF$betweenness, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+It is tempting to consider a narrative in which Node 14 played a crucial role in building fervor for the project in Node 26 who helped evangelize the program among the sparse community of non-members.  More generally, however, we note that all of the top six nodes by betweenness in the successful village were adopters.  Compare this with the top six nodes by betweenness in the unsuccessful village:
+
+```{r}
+Korea2DF[order(Korea2DF$betweenness, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+Two observations leap to the fore:
+
+1. Only two of the top six nodes by betweenness in the unsuccessful village adopted family planning.
+2. The unsuccessful village's betweenness scores among the top nodes are substantially more uniform than they are those in the successful village.  This is clearly a result of the bridge between the spare sub-network and the more dense sub-network in the successful village described above.
+
+#### A quick note on density
+
+The village that failed to see widespread adoption of family planning (`Korea2`) seems to have a dense communication network than does the village that adopted family planning more readily.  Computing these values using the `edge_density` function in the `igraph` package we find that the graph derived from the village that saw widespread adoption of family planning has a density of 
+
+```{r}
+edge_density(Korea1)
+```
+
+while the village that did not experience widespread adoption of family planning had a density of
+
+```{r}
+edge_density(Korea2)
+```
+
+It is not immediately clear if this difference is significant, but it is interesting to note that the more dense network did not result in widespread adoption of family planning.  In Communication Networks, Rogers and Kincaid noted that the village in Oryu Li, held up as a miracle for its widespread adoption of family planning, was "more connected in a communication sense" than were villages that were less successful in implementing family planning.
+
+#### Considering other measures of centrality
+
+We can examine eigenvector centrality in a manner similar to the examination of betweenness centrality conducted above.
+
+First, consider the successful village:
+
+```{r}
+Korea1DF[order(Korea1DF$eigen, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+Then, the unsuccessful village:
+```{r}
+Korea2DF[order(Korea2DF$eigen, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+The top nodes by eigenvector centrality in the successful village were overwhelmingly members of the mothers' club and overwhelmingly adopted family planning.  In contrast, the top nodes by eigenvector in the unsuccessful village were primarily unaffiliated with the mothers' club and were split in their adoption of family planning.
+
+Examining degree centrality following the same pattern of analysis, first for the successful village.
+
+```{r}
+Korea1DF[order(Korea1DF$degree, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+Then the unsuccessful village.
+
+```{r}
+Korea2DF[order(Korea2DF$degree, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+We see that club members and adopters were the top nodes by degree centrality in the case of the successful village but were not in the case of the unsuccessful village.
+
+Moving to closeness in a similar manner, first for the successful village.
+
+```{r}
+Korea1DF[order(Korea1DF$closeness, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+Then the unsuccessful village.
+
+```{r}
+Korea2DF[order(Korea2DF$closeness, decreasing = TRUE),] %>%
+  head %>% pander
+```
+
+Here we see that the top nodes by closeness in the successful village -- those that can be thought of as occupying central positions in the graph -- were primarily members of the mothers' club and adopters of family planning.  Their counterparts in the unsuccessful village were mostly unaffiliated and split their adoption of family planning.
+
+### Conclusions
+
+The village that saw widespread adoption of family planning had adopters and mothers' club members occupying the key positions in the communication graph.  This could indicate that these individuals put forth a coordinated messaging effort, or it could be an artifact of pre-exisisting social ties.  The role of Node 14 of bringing the message to a sparse by relativel large sub-network may have been critical to her village's success.
+
+The village in which women tended to eschew family planning was somewhat more densely connected.  Non-adopters and women who were not members of the mothers' club split the critical nodes in the network with their counterparts who favored adoption.  Possibly as a result of competing strong influences, the bulk of women who were not members of the mothers' club failed to adopt family planning in this village compared with nearly half of non-club members in the more successful village.
+
+It seems, then, that all measures of centrality are interesting in the analysis of communications networks, but that context may favor certain measures over others.  While the four measures of centrality were all of interst in this case, the most compelling narrative centered on betweenness as exmplified by the bridging role played by Node 14 of the successful village.
