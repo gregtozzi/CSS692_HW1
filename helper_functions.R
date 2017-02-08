@@ -1,23 +1,18 @@
 korea_graph <- function(netFile, memberFile, adopterFile) {
+  # Read in the data
   newGraph <- read_graph(netFile, format = 'pajek')
   newMembers <- read.csv(memberFile)[,2]
   newAdopters <- read.csv(adopterFile)[,2]
   
-  Members <- character(length = length(newMembers))
-  Members[which(newMembers == 1)] <- 'member'
-  Members[which(newMembers == 0)] <- 'non-member'
+  # Add membership and adoption data to the graph
+  V(newGraph)$members <- newMembers
+  V(newGraph)$adopters <- newAdopters
   
-  Adopters <- character(length = length(newAdopters))
-  Adopters[which(newAdopters == 1)] <- 'adopter'
-  Adopters[which(newAdopters == 0)] <- 'non-adopter'
-  
-  V(newGraph)$members <- Members
-  V(newGraph)$adopters <- Adopters
-  
-  # Compute measures of centrality
-  V(newGraph)$betweenness <- betweenness(newGraph)
+  # Compute measures of centrality and add them to the graph
+  V(newGraph)$betweenness <- betweenness(newGraph, normalized = TRUE)
   V(newGraph)$eigen <- eigen_centrality(newGraph)$vector
-  V(newGraph)$degree <- degree(newGraph)
+  V(newGraph)$degree <- degree(newGraph, normalized = TRUE)
+  V(newGraph)$closeness <- closeness(newGraph, normalized = TRUE)
   
   return(newGraph)
 }
